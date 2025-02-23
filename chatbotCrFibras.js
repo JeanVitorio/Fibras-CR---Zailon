@@ -1,203 +1,144 @@
 const qrcode = require('qrcode-terminal');
-const { Client } = require('whatsapp-web.js');
+const { Client, MessageMedia } = require('whatsapp-web.js');
 const client = new Client();
-const path = require('path');
 
 client.on('qr', qr => {
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-    console.log('Chatbot da Fibras CR Soluções em Fibras conectado!');
+    console.log('Chatbot de vendas de Piscinas e Barcos conectado!');
 });
 
 client.initialize();
 
+let respostaSimNaoPedido = '';
 let pedidos = {};
-let enderecos = {};
+let conversaEstado = {}; // Para controlar o estado da conversa do cliente
 
+// Cardápio de produtos (Piscinas e Barcos)
 const produtos = {
-    "1A": { 
-        nome: "Barco Fibra 6m", 
-        preco: 25000 
-    },
-    "1B": { 
-        nome: "Barco Fibra 8m", 
-        preco: 35000 
-    },
-    "1C": { 
-        nome: "Barco Fibra 10m", 
-        preco: 45000 
-    },
-    "2A": { 
-        nome: "Piscina Fibra 4x2m", 
-        preco: 10000 
-    },
-    "2B": { 
-        nome: "Piscina Fibra 6x3m", 
-        preco: 15000 
-    },
-    "2C": { 
-        nome: "Piscina Fibra 8x4m", 
-        preco: 20000 
-    },
-    "3A": { 
-        nome: "Barco Fibra 4.60m", 
-        preco: 22000,
-        descricao: "Barco de 4.60m comprimento, 45cm de altura da borda alta, 1.25m de largura no meio e 1.10m na traseira, reforçado para motor de 6HP, com 6 porta molinete, 1 banco porta objetos, 1 banco viveiro e 1 banco caixa de ar. Capacidade para até 5 pessoas e suporta até 75kg por pessoa.",
-        imagens: [
-            path.join(__dirname, 'Criativos', 'Barco_4.60', 'frente_direita.jpeg'),
-            path.join(__dirname, 'Criativos', 'Barco_4.60', 'frente.jpeg'),
-            path.join(__dirname, 'Criativos', 'Barco_4.60', 'tras_esquerda.jpeg')
-        ],
-        video: path.join(__dirname, 'Criativos', 'Barco_4.60', 'video_demonstrativo.mp4')
-    }
+    "1": { nome: "Barco de 4.60m", preco: 3300, imagens: [
+        "./Criativos/Barco_4.60/frente_direita.jpeg",
+        "./Criativos/Barco_4.60/frente.jpeg",
+        "./Criativos/Barco_4.60/tras_esquerda.jpeg"
+    ]},
+    "2": { nome: "Barco de 3m", preco: 2000, imagens: [
+        "./Criativos/Barco_3m/frente_cinza.jpeg",
+        "./Criativos/Barco_3m/tras_cinza.jpeg",
+        "./Criativos/Barco_3m/tras_verde.jpeg"
+    ]},
+    "3": { nome: "Piscina 3x6x1.30", preco: 0, imagens: [
+        "./Criativos/Piscina_3X6X1.30/frente.jpeg",
+        "./Criativos/Piscina_3X6X1.30/frente03.jpeg",
+        "./Criativos/Piscina_3X6X1.30/fretne02.jpeg"
+    ]},
+    "4": { nome: "Barco estilo Canoa 4m", preco: 2500, imagens: [
+        "./Criativos/Barco_estilo_canoa_4m/frente.jpeg",
+        "./Criativos/Barco_estilo_canoa_4m/tras.jpeg"
+    ]},
+    "5": { nome: "Piscina estilo retrô 2,40x4x1.30", preco: 0, imagens: [
+        "./Criativos/Piscina_estilo_retro_2,40X4X1.30/lado01.jpeg",
+        "./Criativos/Piscina_estilo_retro_2,40X4X1.30/lado02.jpeg",
+        "./Criativos/Piscina_estilo_retro_2,40X4X1.30/lado03.jpeg"
+    ]}
 };
 
-const adicionais = {
-    "capa": { nome: "Capa para Barco", preco: 1500 },
-    "escada": { nome: "Escada para Piscina", preco: 800 },
-    "bomba": { nome: "Bomba para Piscina", preco: 2000 }
-};
+// Função que envia as imagens de um produto
+async function enviarImagemProduto(chatId, produto) {
+    for (let imagem of produto.imagens) {
+        const media = MessageMedia.fromFilePath(imagem);
+        await client.sendMessage(chatId, media, { caption: produto.nome });
+    }
+}
 
 client.on('message', async msg => {
     const chatId = msg.from;
+    const mensagem = msg.body.trim().toLowerCase();
 
-    if (msg.body.match(/(menu|produtos|oi|olá|opa)/i) && chatId.endsWith('@c.us')) {
+    // Inicializa o estado da conversa para novos usuários
+    if (!conversaEstado[chatId]) {
+        conversaEstado[chatId] = {
+            etapa: 'inicio',  // Começa no estado de início
+            produtoEscolhido: null
+        };
+    }
+
+    // Saudação inicial e menu de opções
+    if (conversaEstado[chatId].etapa === 'inicio' && mensagem.match(/(oi|olá|opa|bao|ola|bom dia|boa noite|)/i)) {
         const chat = await msg.getChat();
         const contact = await msg.getContact();
         const name = contact.pushname;
-        pedidos[chatId] = [];
 
-        await client.sendMessage(chatId, `Olá, ${name.split(" ")[0]}! Como podemos te ajudar?
-
-1 - Ver os produtos 🌊
-2 - Fazer um pedido 📦
-3 - Consultar prazo de entrega 🚀
-4 - Falar com um atendente 👨‍💼`);
+        await client.sendMessage(chatId, `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da CR Fibras. Gostaria de saber mais sobre nossos produtos?`);
+        await client.sendMessage(chatId, `Digite "Sim" para ver nossos produtos ou "Não" para falar com um atendente.`);
+        conversaEstado[chatId].etapa = 'menu';  // Muda para o menu de produtos
     }
 
-    if (msg.body === '1' && chatId.endsWith('@c.us')) {
-        await client.sendMessage(chatId, `Aqui estão nossos produtos:
-
-**Barcos de Fibra:**
-1 - Barco Fibra 6m - R$ 25.000,00
-2 - Barco Fibra 8m - R$ 35.000,00
-3 - Barco Fibra 10m - R$ 45.000,00
-
-**Piscinas de Fibra:**
-4 - Piscina Fibra 4x2m - R$ 10.000,00
-5 - Piscina Fibra 6x3m - R$ 15.000,00
-6 - Piscina Fibra 8x4m - R$ 20.000,00
-
-**Barco Fibra 4.60m - R$ 22.000,00**
-- Para mais detalhes, digite "Barco 4.60m".`);
+    // Quando o cliente deseja saber mais sobre os produtos
+    if (conversaEstado[chatId].etapa === 'menu' && mensagem === 'sim') {
+        await client.sendMessage(chatId, `Aqui estão os nossos produtos disponíveis:`);
+        await client.sendMessage(chatId, `1 - Barco de 4.60m (R$ 3.300)\n2 - Barco de 3m (R$ 2.000)\n3 - Piscina 3x6x1.30 (Preço sob consulta)\n4 - Barco estilo Canoa 4m (R$ 2.500)\n5 - Piscina estilo retrô 2,40x4x1.30 (Preço sob consulta)`);
+        await client.sendMessage(chatId, `Escolha o número do produto para saber mais detalhes.`);
+        conversaEstado[chatId].etapa = 'escolherProduto'; // Muda para escolher produto
     }
 
-    if (msg.body.match(/barco 4.60m/i) && chatId.endsWith('@c.us')) {
-        const produto = produtos["3A"];
-        
-        await client.sendMessage(chatId, `Aqui estão os detalhes do nosso Barco Fibra 4.60m:
-        
-**Descrição:**
-${produto.descricao}
+    // Escolha de produto e mostrar detalhes
+    if (conversaEstado[chatId].etapa === 'escolherProduto' && ['1', '2', '3', '4', '5'].includes(mensagem)) {
+        const produtoEscolhido = mensagem;
+        const produto = produtos[produtoEscolhido];
+        conversaEstado[chatId].produtoEscolhido = produtoEscolhido;
 
-**Imagens:**
-- (Imagem 1: Frente direita)`);
-        
-        await client.sendMessage(chatId, { 
-            caption: 'Frente Direita do Barco', 
-            file: produto.imagens[0], 
-            mediaType: 'image/jpeg'
-        });
-        
-        await client.sendMessage(chatId, { 
-            caption: 'Frente do Barco', 
-            file: produto.imagens[1], 
-            mediaType: 'image/jpeg'
-        });
-        
-        await client.sendMessage(chatId, { 
-            caption: 'Traseira esquerda do Barco', 
-            file: produto.imagens[2], 
-            mediaType: 'image/jpeg'
-        });
+        // Enviar detalhes do produto
+        await client.sendMessage(chatId, `Você escolheu o produto: ${produto.nome}`);
+        await client.sendMessage(chatId, `Aqui estão as imagens do produto:`);
+        await enviarImagemProduto(chatId, produto);
 
-        await client.sendMessage(chatId, `Assista ao vídeo demonstrativo do barco:`);
-        await client.sendMessage(chatId, { 
-            caption: 'Vídeo demonstrativo', 
-            file: produto.video, 
-            mediaType: 'video/mp4'
-        });
+        // Pergunta se deseja fazer o pedido
+        await client.sendMessage(chatId, `Gostaria de fazer o pedido deste produto? Digite "Sim" para confirmar ou "Não" para escolher outro produto.`);
+        conversaEstado[chatId].etapa = 'confirmarPedido'; // Muda para confirmar o pedido
     }
 
-    if (msg.body.match(/^([1-2][A-C],?\s?)+$/i) && chatId.endsWith('@c.us')) {
-        const pedidosCliente = msg.body.toUpperCase().split(/,\s?/);
-        let total = 0;
-        pedidos[chatId] = pedidosCliente.map(pedido => {
-            if (produtos[pedido]) {
-                total += produtos[pedido].preco;
-                return produtos[pedido].nome;
-            }
-        }).filter(Boolean);
+    // Confirmar pedido
+    if (conversaEstado[chatId].etapa === 'confirmarPedido') {
+        if (mensagem === 'sim') {
+            const produto = produtos[conversaEstado[chatId].produtoEscolhido];
+            pedidos[chatId] = pedidos[chatId] || [];
+            pedidos[chatId].push(produto.nome);
 
-        await client.sendMessage(chatId, `Você deseja adicionar algum adicional? Temos:
-- Capa para Barco (R$ 1.500,00)
-- Escada para Piscina (R$ 800,00)
-- Bomba para Piscina (R$ 2.000,00)
+            let total = pedidos[chatId].reduce((acc, produtoNome) => {
+                const produto = Object.values(produtos).find(p => p.nome === produtoNome);
+                return acc + (produto ? produto.preco : 0);
+            }, 0);
 
-Digite o nome do adicional ou "Não" para finalizar.`);
-        
-        pedidos[chatId].total = total; // Armazena o total até o momento
+            pedidos[chatId].total = total;
+
+            // Confirmação do pedido
+            await client.sendMessage(chatId, `Ficamos muito felizes com o seu interesse! 😊
+
+Seu pedido foi confirmado com sucesso! O frete será combinado diretamente com um de nossos atendentes.
+
+Em breve, um atendente entrará em contato para finalizar todos os detalhes e garantir que tudo corra da melhor forma possível. Se precisar de algo, estamos à disposição!
+
+Agradecemos pela confiança na CR Fibras! 🙌`);
+            delete pedidos[chatId];  // Limpa o pedido após confirmação
+            conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
+        } else if (mensagem === 'não') {
+            await client.sendMessage(chatId, `Entendido! Gostaria de voltar ao menu de produtos ou preferiria falar com um atendente humano?`);
+            conversaEstado[chatId].etapa = 'menu'; // Volta para o menu
+        }
     }
 
-    const adicionalPedido = msg.body.toLowerCase();
-    
-    if (adicionalPedido in adicionais && chatId.endsWith('@c.us')) {
-        const adicional = adicionais[adicionalPedido];
-        await client.sendMessage(chatId, `Você escolheu ${adicional.nome}. Deseja adicionar mais algum produto ou adicional? (Sim/Não)`);
-        
-        pedidos[chatId].adicional = adicional; // Armazena o adicional escolhido
+    // Se o cliente escolhe voltar ao menu de produtos
+    if (conversaEstado[chatId].etapa === 'menu' && mensagem === 'voltar') {
+        await client.sendMessage(chatId, `Aqui estão as opções de produtos novamente:`);
+        await client.sendMessage(chatId, `1 - Barco de 4.60m (R$ 3.300)\n2 - Barco de 3m (R$ 2.000)\n3 - Piscina 3x6x1.30 (Preço sob consulta)\n4 - Barco estilo Canoa 4m (R$ 2.500)\n5 - Piscina estilo retrô 2,40x4x1.30 (Preço sob consulta)`);
+        await client.sendMessage(chatId, `Escolha o número do produto para ver mais detalhes.`);
     }
 
-    const respostaSimNao = msg.body.toLowerCase();
-
-    if ((respostaSimNao === 'não' || respostaSimNao === 'nao') && chatId.endsWith('@c.us')) {
-        const pedidoConfirmado = pedidos[chatId].join(', ');
-        const total = pedidos[chatId].total; // Obtem o total final
-        await client.sendMessage(chatId, `Confirmando seu pedido!
-Você pediu: ${pedidoConfirmado}
-Valor total: R$ ${total},00
-**Frete a combinar.**
-Por favor, digite "Entrega" ou "Retirada".`);
-    }
-
-    if ((respostaSimNao === 'sim') && chatId.endsWith('@c.us')) {
-        await client.sendMessage(chatId, `Ótimo! O que mais você gostaria de adicionar ao seu pedido?`);
-    }
-
-    if (respostaSimNao === 'retirada' && chatId.endsWith('@c.us')) {
-        await client.sendMessage(chatId, 'Seu pedido estará pronto para retirada em aproximadamente 40 minutos. Obrigado pela preferência! 🌊😊');
-        delete pedidos[chatId];
-    }
-
-    if (respostaSimNao === 'entrega' && chatId.endsWith('@c.us')) {
-        await client.sendMessage(chatId, 'Por favor, informe seu endereço com Rua, Bairro e Número.');
-    }
-
-    if (msg.body.match(/(rua|bairro|número|numero)/i) && chatId.endsWith('@c.us')) {
-        enderecos[chatId] = msg.body;
-        const pedidoConfirmado = pedidos[chatId].join(', ');
-        const total = pedidos[chatId].total; // Obtem o total final
-        
-        await client.sendMessage(chatId, `Obrigado! Seu pedido: ${pedidoConfirmado} será entregue em aproximadamente 1 hora no endereço:
-${enderecos[chatId]}
-Valor total: R$ ${total},00
-
-**Frete a combinar.**
-
-Agradecemos a preferência! 🌊😊`);
-        delete pedidos[chatId];
-        delete enderecos[chatId];
+    // Se o cliente escolher falar com um atendente
+    if (mensagem === 'não' || mensagem === 'nao') {
+        await client.sendMessage(chatId, `Em breve, um atendente entrará em contato para ajudar!`);
+        conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
     }
 });
