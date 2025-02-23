@@ -118,9 +118,8 @@ client.on('message', async msg => {
 
 Seu pedido foi confirmado com sucesso! O frete será combinado diretamente com um de nossos atendentes.
 
-Em breve, um atendente entrará em contato para finalizar todos os detalhes e garantir que tudo corra da melhor forma possível. Se precisar de algo, estamos à disposição!
+Em breve, um atendente entrará em contato para finalizar todos os detalhes e garantir que tudo corra da melhor forma possível. Se precisar de algo, estamos à disposição!`);
 
-Agradecemos pela confiança na CR Fibras! 🙌`);
             delete pedidos[chatId];  // Limpa o pedido após confirmação
             conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
         } else if (mensagem === 'não') {
@@ -136,9 +135,17 @@ Agradecemos pela confiança na CR Fibras! 🙌`);
         await client.sendMessage(chatId, `Escolha o número do produto para ver mais detalhes.`);
     }
 
-    // Se o cliente escolher falar com um atendente
+    // Se o cliente escolhe falar com um atendente
     if (mensagem === 'não' || mensagem === 'nao') {
-        await client.sendMessage(chatId, `Em breve, um atendente entrará em contato para ajudar!`);
+        await client.sendMessage(chatId, `Em breve, um atendente entrará em contato para ajudar! \n\n Se desejar reiniciar o atendimento a qualquer momento, digite "reiniciar"`);
         conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
+    }
+
+    // Se o cliente pedir para reiniciar o atendimento
+    if (mensagem === 'reiniciar') {
+        conversaEstado[chatId].etapa = 'inicio'; // Reinicia a conversa
+        await client.sendMessage(chatId, `Claro! Vamos reiniciar o atendimento. 😊`);
+        await client.sendMessage(chatId, `Olá, sou o assistente virtual da CR Fibras. Gostaria de saber mais sobre nossos produtos?`);
+        await client.sendMessage(chatId, `Digite "Sim" para ver nossos produtos ou "Não" para falar com um atendente.`);
     }
 });
