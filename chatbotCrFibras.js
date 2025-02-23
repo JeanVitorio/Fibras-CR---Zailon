@@ -83,6 +83,12 @@ client.on('message', async msg => {
         conversaEstado[chatId].etapa = 'escolherProduto'; // Muda para escolher produto
     }
 
+    // Quando o cliente digita "Não" para ser atendido por um humano
+    if (conversaEstado[chatId].etapa === 'menu' && mensagem === 'não') {
+        await client.sendMessage(chatId, `Entendido! Em breve, um atendente entrará em contato para ajudar!`);
+        conversaEstado[chatId].etapa = 'finalizado'; // Finaliza o atendimento
+    }
+
     // Escolha de produto e mostrar detalhes
     if (conversaEstado[chatId].etapa === 'escolherProduto' && ['1', '2', '3', '4', '5'].includes(mensagem)) {
         const produtoEscolhido = mensagem;
