@@ -123,21 +123,23 @@ Em breve, um atendente entrará em contato para finalizar todos os detalhes e ga
             delete pedidos[chatId];  // Limpa o pedido após confirmação
             conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
         } else if (mensagem === 'não') {
-            await client.sendMessage(chatId, `Entendido! Gostaria de voltar ao menu de produtos ou preferiria falar com um atendente humano?`);
-            conversaEstado[chatId].etapa = 'menu'; // Volta para o menu
+            await client.sendMessage(chatId, `Entendido!`);
+            await client.sendMessage(chatId, `Gostaria de voltar ao menu de produtos ou preferiria falar com um atendente?`);
+            await client.sendMessage(chatId, `Digite "Voltar" para retornar ao menu de produtos ou "Atendente" para falar com um atendente.`);
+            conversaEstado[chatId].etapa = 'decidirVoltarOuAtendente';  // Muda para a etapa onde o cliente decide o próximo passo
         }
     }
 
-    // Se o cliente escolhe voltar ao menu de produtos
-    if (conversaEstado[chatId].etapa === 'menu' && mensagem === 'voltar') {
-        await client.sendMessage(chatId, `Aqui estão as opções de produtos novamente:`);
-        await client.sendMessage(chatId, `1 - Barco de 4.60m (R$ 3.300)\n2 - Barco de 3m (R$ 2.000)\n3 - Piscina 3x6x1.30 (Preço sob consulta)\n4 - Barco estilo Canoa 4m (R$ 2.500)\n5 - Piscina estilo retrô 2,40x4x1.30 (Preço sob consulta)`);
-        await client.sendMessage(chatId, `Escolha o número do produto para ver mais detalhes.`);
+    // Se o cliente decide voltar ao menu
+    if (conversaEstado[chatId].etapa === 'decidirVoltarOuAtendente' && mensagem.toLowerCase() === 'voltar') {
+        await client.sendMessage(chatId, `Ok, voltando ao menu de produtos!`);
+        await client.sendMessage(chatId, `Escolha o número do produto para saber mais detalhes:\n1 - Barco de 4.60m (R$ 3.300)\n2 - Barco de 3m (R$ 2.000)\n3 - Piscina 3x6x1.30 (Preço sob consulta)\n4 - Barco estilo Canoa 4m (R$ 2.500)\n5 - Piscina estilo retrô 2,40x4x1.30 (Preço sob consulta)`);
+        conversaEstado[chatId].etapa = 'escolherProduto';  // Volta para a escolha do produto
     }
 
-    // Se o cliente escolhe falar com um atendente
-    if (mensagem === 'não' || mensagem === 'nao') {
-        await client.sendMessage(chatId, `Em breve, um atendente entrará em contato para ajudar! \n\n Se desejar reiniciar o atendimento a qualquer momento, digite "reiniciar"`);
+    // Se o cliente deseja falar com um atendente
+    if (conversaEstado[chatId].etapa === 'decidirVoltarOuAtendente' && mensagem.toLowerCase() === 'atendente') {
+        await client.sendMessage(chatId, `Em breve, um atendente entrará em contato para ajudar!`);
         conversaEstado[chatId].etapa = 'finalizado';  // Muda para finalizado
     }
 
