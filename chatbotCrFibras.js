@@ -180,10 +180,11 @@ client.on('message', async msg => {
             });
 
             if (!temPrecoCombinado) {
-                resumoPedido += `\nTotal do pedido: R$ ${totalPedido.toFixed(2)}\n\n`;
+                resumoPedido += `\nTotal do pedido: R$ ${totalPedido.toFixed(2)}\n`;
             } else {
-                resumoPedido += `\nO preço total será combinado com um atendente.\n\n`;
+                resumoPedido += `\nO preço total será combinado com um atendente.\n`;
             }
+            resumoPedido += `\nFrete a combinar!.\n\n`;
 
             resumoPedido += `Agradecemos pela sua preferência, volte sempre! 😊\n\n`;
             resumoPedido += `Para finalizar o seu atendimento, basta digitar "finalizado". Isso irá concluir o pedido e encerrar a conversa com o chatbot.\n\n`;
