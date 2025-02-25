@@ -166,12 +166,25 @@ client.on('message', async msg => {
         } else if (mensagem.match(/finalizar/i)) {
             let resumoPedido = 'Seu pedido final:\n\n';
             let totalPedido = 0;
+            let temPrecoCombinado = false;
 
             pedidos[chatId].forEach(item => {
                 resumoPedido += `${item.quantidade} x ${item.nome} - R$ ${item.preco ? item.preco.toFixed(2) : 'A ser combinado'} cada\n`;
-                totalPedido += item.total === 'A ser combinado' ? 0 : item.total;
+
+                // Verifica se algum produto tem o preço "a ser combinado"
+                if (item.total !== 'A ser combinado') {
+                    totalPedido += item.total;
+                } else {
+                    temPrecoCombinado = true;
+                }
             });
-            resumoPedido += `\nTotal do pedido: R$ ${totalPedido.toFixed(2)}\n\n`;
+
+            if (!temPrecoCombinado) {
+                resumoPedido += `\nTotal do pedido: R$ ${totalPedido.toFixed(2)}\n\n`;
+            } else {
+                resumoPedido += `\nO preço total será combinado com um atendente.\n\n`;
+            }
+
             resumoPedido += `Agradecemos pela sua preferência, volte sempre! 😊\n\n`;
             resumoPedido += `Para finalizar o seu atendimento, basta digitar "finalizado". Isso irá concluir o pedido e encerrar a conversa com o chatbot.\n\n`;
             resumoPedido += `Em breve, um atendente irá entrar em contato para combinar a entrega ou retirada do produto.`;
